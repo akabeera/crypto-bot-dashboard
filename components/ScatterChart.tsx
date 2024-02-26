@@ -79,7 +79,7 @@ const ScatterChart = () => {
 
                 const closedPositions = sellOrder.closed_positions
                 closedPositions.forEach(cp => {
-                    const timeTakenToSell = (sellTimestamp - cp.timestamp)/(1000 * 60)
+                    const timeTakenToSell = (sellTimestamp - cp.timestamp)/(1000 * 60 * 60)
                     tickerDataset.data.push({x: sellTimestamp, y:timeTakenToSell})
                 })
             })
@@ -106,6 +106,9 @@ const ScatterChart = () => {
                     x: {
                         type: 'linear',
                         position: 'bottom'
+                    },
+                    y: {
+                        type: 'logarithmic'
                     }
                 }
             }

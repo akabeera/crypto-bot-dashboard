@@ -4,6 +4,7 @@ import mongoClientPromise from '../../utils/mongodb'
 import { BuyOrder } from '../../interfaces/buyOrder'
 
 const tickersWhiteList = process.env.SUPPORTED_TICKERS || ""
+const timeOffSet = 1000 * 60 * 60 * 24 * 30 * 2
 
 export default async function handler(
   req: NextApiRequest,
@@ -17,7 +18,13 @@ export default async function handler(
         const collection = db.collection<BuyOrder>(COLLECTION_NAME)
 
         const tickersList = tickersWhiteList && tickersWhiteList.length > 0 ? tickersWhiteList.split(",").map(t => `${t.toUpperCase()}/USD`) : []
-        const query = tickersList.length > 0 ? { "sell_order.symbol": {$in: tickersList} } : {}
+        const since = Date.now() - timeOffSet
+        const query = tickersList.length > 0 ? { 
+            $and: [
+                { "sell_order.symbol": {$in: tickersList} },
+                { "sell_order.timestamp": {$gte: since}}
+            ]
+        } : {}
         
         const documents = await collection.find(query).toArray();
         res.status(200).json(documents);
