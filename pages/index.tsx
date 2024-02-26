@@ -1,6 +1,7 @@
 import Image from "next/image"
 import { Inter } from "next/font/google"
 import CurrentHoldings from "@/components/CurrentHoldings"
+import ScatterChart from "@/components/ScatterChart"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -13,8 +14,14 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="w-full">
-        <CurrentHoldings/>
+      <div>
+        <div className="w-full">
+          <CurrentHoldings/>
+        </div>
+          <ScatterChart />
+        <div>
+
+        </div>
       </div>
 
     </main>
