@@ -16,39 +16,17 @@ interface Dataset {
     pointStyle: string
 }
 
-const ScatterChart = () => {
-    const [tickerPairs, setTickerPairs] = useState<string[]>([])
-    const [tickerSellOrders, setTickerSellOrders] = useState<Dictionary<SellOrder[]>>()
+type Props = {
+    title: string,
+    tickerLists: string[] | undefined,
+    tickersSellOrders: Dictionary<SellOrder[]> | undefined
+}
+
+const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
     const [chartInstance, setChartInstance] = useState<Chart | null>(null);
 
     useEffect(() => {
-        console.log("useEffect []")
-        async function asyncFetchSellOrders() {
-            const sellOrderResponse = await fetch(`api/sellOrders`)
-            const SellOrderResponseJson = await sellOrderResponse.json()
-
-            const newTickerSellOrders: Dictionary<SellOrder[]> = {}
-            const allTickerPairs: string[] = []
-            SellOrderResponseJson.forEach((sellOrder:SellOrder) => {
-                const tickerPair = sellOrder.sell_order.symbol
-
-                if (tickerPair in newTickerSellOrders) {
-                    newTickerSellOrders[sellOrder.sell_order.symbol].push(sellOrder)
-                } else {
-                    allTickerPairs.push(tickerPair)
-                    newTickerSellOrders[sellOrder.sell_order.symbol] = [sellOrder]
-                }
-            })
-
-            setTickerPairs(allTickerPairs)
-            setTickerSellOrders(newTickerSellOrders)
-        }
-
-        asyncFetchSellOrders()
-    }, [])
-
-    useEffect(() => {
-        if (tickerPairs.length == 0 || !tickerSellOrders){
+        if (!tickerLists || !tickersSellOrders || tickerLists.length == 0 || !tickersSellOrders){
             return
         }
 
@@ -63,8 +41,8 @@ const ScatterChart = () => {
         }
         const datasets: Dataset[] = []
         const scatter_plot_styles_length = SCATTER_PLOT_STYLES.length
-        tickerPairs.forEach((tickerPair, idx:number) => {
-            const scatterPlotStyle =SCATTER_PLOT_STYLES[idx % scatter_plot_styles_length]
+        tickerLists.forEach((tickerPair, idx:number) => {
+            const scatterPlotStyle = SCATTER_PLOT_STYLES[idx % scatter_plot_styles_length]
             const tickerDataset: Dataset = {
                 label: tickerPair,
                 data: [],
@@ -72,7 +50,7 @@ const ScatterChart = () => {
                 pointStyle: scatterPlotStyle.pointStyle
             }
             
-            const sellOrders = tickerSellOrders[tickerPair]
+            const sellOrders = tickersSellOrders[tickerPair]
             sellOrders.forEach((sellOrder) => {
                 const so = sellOrder.sell_order
                 const sellTimestamp = so.timestamp
@@ -120,12 +98,14 @@ const ScatterChart = () => {
             newChartInstance.destroy()
         }
 
-    }, [tickerPairs, tickerSellOrders])
+    }, [tickerLists, tickersSellOrders])
+
+
 
     return (
         <div className={`flex flex-col p-4`}>
             <div className="pb-4">
-                <p className="text-3xl font-bold">Historical Performance</p>
+                <p className="text-3xl font-bold">{title}</p>
             </div>
             <div className="border border-gray-400 pt-0 rounded-xl">
                 <canvas id="scatterplot"></canvas>
