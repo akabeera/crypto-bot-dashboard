@@ -56,6 +56,7 @@ const ProfitsLineChart = ({title, tickerLists, tickersSellOrders}: Props) => {
         let profit = 0
         const dataPoints: DataPoint[] = []
         const labels: string[] = []
+        let lastDate = ""
         tickersSellOrdersArray.forEach((sellOrder) => {
             const proceeds = sellOrder.sell_order.cost - sellOrder.sell_order.fee.cost
             let pricePaid = 0
@@ -69,11 +70,14 @@ const ProfitsLineChart = ({title, tickerLists, tickersSellOrders}: Props) => {
             const sellOrderDate = convertEpochToYYYYMMDD(sellOrder.sell_order.timestamp)
             labels.push(sellOrderDate)
             
-            const dataPoint: DataPoint = {
-                x: sellOrderDate,
-                y: profit
+            if (lastDate !== sellOrderDate) {
+                lastDate = sellOrderDate
+                const dataPoint: DataPoint = {
+                    x: sellOrderDate,
+                    y: profit
+                }
+                dataPoints.push(dataPoint)
             }
-            dataPoints.push(dataPoint)
         })
 
         const dataset: Dataset = {
