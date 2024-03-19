@@ -45,9 +45,5 @@ export const SCATTER_PLOT_STYLES = [
     {
         pointStyle: 'crossRot',
         backgroundColor: 'rgb(99, 135, 157)'
-    },
-    {
-        pointStyle: 'rectRounded',
-        backgroundColor: 'rgb(225, 196, 96)'
     }
 ]

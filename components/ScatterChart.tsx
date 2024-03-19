@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import Chart from 'chart.js/auto'
 import { SellOrder } from "@/interfaces/sellOrder";
 import { Dictionary } from "@/interfaces/dictionary";
@@ -16,6 +16,12 @@ interface Dataset {
     pointStyle: string
 }
 
+interface ChartTicker {
+    tickerPair: string,
+    visible: boolean,
+    idx: number
+}
+
 type Props = {
     title: string,
     tickerLists: string[] | undefined,
@@ -23,13 +29,32 @@ type Props = {
 }
 
 const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
-    const [chartInstance, setChartInstance] = useState<Chart | null>(null);
+    const [chartInstance, setChartInstance] = useState<Chart | null>(null)
+    const [chartTickersList, setChartTickersList] = useState<ChartTicker[]>([])
 
     useEffect(() => {
-        if (!tickerLists || !tickersSellOrders || tickerLists.length == 0 || !tickersSellOrders){
+        if (!tickerLists || tickerLists.length == 0){
             return
         }
 
+        const scatter_plot_styles_length = SCATTER_PLOT_STYLES.length
+        const chartTickers: ChartTicker[] = []
+        tickerLists.forEach((tickerPair, idx:number) => {
+            const chartTicker: ChartTicker = {
+                tickerPair: tickerPair,
+                visible: idx < scatter_plot_styles_length,
+                idx: idx
+            }
+            chartTickers.push(chartTicker)
+        })
+       
+        setChartTickersList(chartTickers)
+
+    }, [tickerLists])
+
+    useEffect(() => {
+        if (!chartTickersList || chartTickersList.length === 0 || !tickersSellOrders)
+            return
         const canvas = document.getElementById('scatterplot') as HTMLCanvasElement
         if (!canvas) {
             return
@@ -41,16 +66,22 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
         }
         const datasets: Dataset[] = []
         const scatter_plot_styles_length = SCATTER_PLOT_STYLES.length
-        tickerLists.forEach((tickerPair, idx:number) => {
+        for (let idx=0; idx<chartTickersList.length; ++idx) {
+            const chartTicker = chartTickersList[idx]
+        
+            if (!chartTicker.visible) {
+                continue
+            }
+
             const scatterPlotStyle = SCATTER_PLOT_STYLES[idx % scatter_plot_styles_length]
             const tickerDataset: Dataset = {
-                label: tickerPair,
+                label: chartTicker.tickerPair,
                 data: [],
                 backgroundColor: scatterPlotStyle.backgroundColor,
                 pointStyle: scatterPlotStyle.pointStyle
             }
             
-            const sellOrders = tickersSellOrders[tickerPair]
+            const sellOrders = tickersSellOrders[chartTicker.tickerPair]
             sellOrders.forEach((sellOrder) => {
                 const so = sellOrder.sell_order
                 const sellTimestamp = so.timestamp
@@ -62,7 +93,7 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
                 })
             })
             datasets.push(tickerDataset)
-        })
+        }
         
         const data = {
             datasets: datasets.map((ds) =>  {
@@ -98,8 +129,14 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
             newChartInstance.destroy()
         }
 
-    }, [tickerLists, tickersSellOrders])
+    }, [chartTickersList])
 
+    function onTickerSelection(idx: number) {
+        const updartedChartTickersList: ChartTicker[] = JSON.parse(JSON.stringify(chartTickersList))
+        updartedChartTickersList[idx].visible = !updartedChartTickersList[idx].visible
+
+        setChartTickersList(updartedChartTickersList)
+    }
 
 
     return (
@@ -107,6 +144,16 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
             <div className="pb-4">
                 <p className="text-3xl font-bold">{title}</p>
             </div>
+            {true && 
+                <div className="flex flex-wrap pl-4 mb-4 max-w-6xl">
+                    {chartTickersList.map(ct => 
+                        <div className={`p-2 mr-2 mb-2 rounded-xl hover: cursor-pointer ${ct.visible ? "bg-green-800": "bg-neutral-700"}`} onClick={() => onTickerSelection(ct.idx)}>
+                            <div className="text-xs ">{ct.tickerPair}</div>
+                        </div>
+                    )}
+                </div>
+            }
+
             <div className="border border-gray-400 pt-0 rounded-xl">
                 <canvas id="scatterplot"></canvas>
             </div>
