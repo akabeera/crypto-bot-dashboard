@@ -42,12 +42,12 @@ export default function Home() {
 
   return (
     
-    <main className={`flex flex-row ${inter.className}`}>
+    <main className={`flex flex-row bg-white dark:bg-black ${inter.className}`}>
       <div className="flex-grow"></div>
 
       <div className="flex flex-col justify-between p-4">
         <div className="items-center justify-between font-mono">
-          <p className="flex text-3xl justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit">
+          <p className="flex text-3xl pb-6 pt-8 justify-center border-b border-gray-300  dark:border-neutral-800 dark:bg-zinc-800/30 from-inherit dark:text-white text-black">
             Crypto-Bot Performance Dashboard
           </p>
         </div>
