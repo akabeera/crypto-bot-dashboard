@@ -50,7 +50,7 @@ const CurrentHoldings = () => {
                 const current_ticker = lot.symbol
                 const filled = lot.filled
                 const price = lot.price
-                const fee = lot.fee.cost
+                const fee = Number(lot.fee.cost)
                 if (current_ticker in tempAvgPositions) {
                     tempHoldings[current_ticker].individualLots.push(lot)
                     const avgPosition: AvgPosition = tempAvgPositions[current_ticker]
