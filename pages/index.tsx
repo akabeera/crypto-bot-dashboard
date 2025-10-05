@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from "react"
 
-import { Inter } from "next/font/google"
 import { SellOrder } from "@/interfaces/sellOrder";
 import { Dictionary } from "@/interfaces/dictionary";
 
 import CurrentHoldings from "@/components/CurrentHoldings"
 import ScatterChart from "@/components/ScatterChart"
 import ProfitsLineChart from "@/components/ProfitsLineChart"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export default function Home() {
 
@@ -42,7 +39,7 @@ export default function Home() {
 
   return (
     
-    <main className={`flex flex-row bg-white dark:bg-black ${inter.className}`}>
+    <main className="flex flex-row bg-white dark:bg-black">
       <div className="flex-grow"></div>
 
       <div className="flex flex-col justify-between p-4">

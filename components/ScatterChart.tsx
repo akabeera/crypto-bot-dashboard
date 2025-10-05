@@ -146,8 +146,8 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
             </div>
             {true && 
                 <div className="flex flex-wrap pl-4 mb-4 max-w-6xl">
-                    {chartTickersList.map(ct => 
-                        <div className={`p-2 mr-2 mb-2 rounded-xl hover: cursor-pointer ${ct.visible ? "bg-green-800": "bg-neutral-700"}`} onClick={() => onTickerSelection(ct.idx)}>
+                    {chartTickersList.map((ct, idx) => 
+                        <div key={idx}className={`p-2 mr-2 mb-2 rounded-xl hover: cursor-pointer ${ct.visible ? "bg-green-800": "bg-neutral-700"}`} onClick={() => onTickerSelection(ct.idx)}>
                             <div className="text-xs ">{ct.tickerPair}</div>
                         </div>
                     )}
