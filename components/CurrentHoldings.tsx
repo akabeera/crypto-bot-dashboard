@@ -50,7 +50,7 @@ const CurrentHoldings = () => {
                 const current_ticker = lot.symbol
                 const filled = lot.filled
                 const price = lot.price
-                const fee = lot.fee.cost
+                const fee = Number(lot.fee.cost)
                 if (current_ticker in tempAvgPositions) {
                     tempHoldings[current_ticker].individualLots.push(lot)
                     const avgPosition: AvgPosition = tempAvgPositions[current_ticker]
@@ -144,13 +144,13 @@ const CurrentHoldings = () => {
             setHoldingsDisplayState(tempHoldingsDisplayState)
             setAvgPositions(avgPositions)
             setTotalCost(cost)
+            setMarketValue(marketValue)
             setTotalPerformance((marketValue - cost)/cost * 100)
             setIsLoading(false)
         }
 
         loadHoldings()
     }, [])
-
 
     function onHoldingsRowClick(tickerPair: string) {
         console.log(`clicking row: ${tickerPair}`)
@@ -165,7 +165,7 @@ const CurrentHoldings = () => {
     return (
         <div className={`flex flex-col p-4`}>
             <div className="pb-4">
-                <p className="text-3xl font-bold">Current Holdings</p>
+                <p className="text-3xl font-bold">Current Performance</p>
             </div>
             <div className="flex gap-4 pb-2 text-2xl font-bold">
                 <div className="flex-none min-w-32 w-44">{HEADER.SYMBOL}</div>
@@ -212,12 +212,12 @@ const CurrentHoldings = () => {
                 <div className="pb-4">
                     <div className="flex gap-4 text-2xl font-bold pb-4">
                         <div className="w-72">MARKET VALUE:</div>
-                        <div>${marketValue}</div>
+                        <div>${marketValue.toFixed(MAX_PRECISION)}</div>
                     </div>
 
                     <div className="flex gap-4 text-2xl font-bold pb-4">
                         <div className="w-72">TOTAL COST:</div>
-                        <div>${totalCost}</div>
+                        <div>${totalCost.toFixed(MAX_PRECISION)}</div>
                     </div>
                     <div className="flex gap-4 text-2xl font-bold pb-4">
                         <div className="w-72">TOTAL PERFORMANCE:</div>
