@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import Chart from 'chart.js/auto'
+import 'chartjs-adapter-date-fns';
 import { SellOrder } from "@/interfaces/sellOrder";
 import { Dictionary } from "@/interfaces/dictionary";
 import { SCATTER_PLOT_STYLES } from "@/utils/constants";
@@ -28,18 +29,18 @@ type Props = {
     tickersSellOrders: Dictionary<SellOrder[]> | undefined
 }
 
-const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
+const ScatterChart = ({ title, tickerLists, tickersSellOrders }: Props) => {
     const [chartInstance, setChartInstance] = useState<Chart | null>(null)
     const [chartTickersList, setChartTickersList] = useState<ChartTicker[]>([])
 
     useEffect(() => {
-        if (!tickerLists || tickerLists.length == 0){
+        if (!tickerLists || tickerLists.length == 0) {
             return
         }
 
         const scatter_plot_styles_length = SCATTER_PLOT_STYLES.length
         const chartTickers: ChartTicker[] = []
-        tickerLists.forEach((tickerPair, idx:number) => {
+        tickerLists.forEach((tickerPair, idx: number) => {
             const chartTicker: ChartTicker = {
                 tickerPair: tickerPair,
                 visible: idx < scatter_plot_styles_length,
@@ -47,7 +48,7 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
             }
             chartTickers.push(chartTicker)
         })
-       
+
         setChartTickersList(chartTickers)
 
     }, [tickerLists])
@@ -61,14 +62,14 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
         }
 
         // Destroy the existing chart instance if it exists
-        if (chartInstance){
+        if (chartInstance) {
             chartInstance.destroy();
         }
         const datasets: Dataset[] = []
         const scatter_plot_styles_length = SCATTER_PLOT_STYLES.length
-        for (let idx=0; idx<chartTickersList.length; ++idx) {
+        for (let idx = 0; idx < chartTickersList.length; ++idx) {
             const chartTicker = chartTickersList[idx]
-        
+
             if (!chartTicker.visible) {
                 continue
             }
@@ -80,7 +81,7 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
                 backgroundColor: scatterPlotStyle.backgroundColor,
                 pointStyle: scatterPlotStyle.pointStyle
             }
-            
+
             const sellOrders = tickersSellOrders[chartTicker.tickerPair]
             sellOrders.forEach((sellOrder) => {
                 const so = sellOrder.sell_order
@@ -88,41 +89,45 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
 
                 const closedPositions = sellOrder.closed_positions
                 closedPositions.forEach(cp => {
-                    const timeTakenToSell = (sellTimestamp - cp.timestamp)/(1000 * 60 * 60)
-                    tickerDataset.data.push({x: sellTimestamp, y:timeTakenToSell})
+                    // Calculate profit percentage: (Sell Price - Buy Price) / Buy Price * 100
+                    const buyPrice = cp.price
+                    const sellPrice = so.price
+                    const profitPercent = ((sellPrice - buyPrice) / buyPrice) * 100
+
+                    tickerDataset.data.push({ x: sellTimestamp, y: profitPercent })
                 })
             })
             datasets.push(tickerDataset)
         }
-        
+
         const data = {
-            datasets: datasets.map((ds) =>  {
+            datasets: datasets.map((ds) => {
                 return {
                     label: ds.label,
                     backgroundColor: ds.backgroundColor,
-                    data: ds.data.map(pts => { return {x: pts.x, y: pts.y}}),
+                    data: ds.data.map(pts => { return { x: pts.x, y: pts.y } }),
                     pointStyle: ds.pointStyle,
                     radius: 5
                 }
             })
         }
         const newChartInstance = new Chart(canvas, {
-                type: 'scatter',
-                data: data,
-                options: {
-                
+            type: 'scatter',
+            data: data,
+            options: {
+
                 scales: {
                     x: {
-                        type: 'linear',
+                        type: 'time',
                         position: 'bottom'
                     },
                     y: {
-                        type: 'logarithmic'
+                        type: 'linear'
                     }
                 }
             }
         })
-    
+
         setChartInstance(newChartInstance)
 
         return () => {
@@ -144,10 +149,10 @@ const ScatterChart = ({title, tickerLists, tickersSellOrders}: Props) => {
             <div className="pb-4">
                 <p className="text-3xl font-bold">{title}</p>
             </div>
-            {true && 
+            {true &&
                 <div className="flex flex-wrap pl-4 mb-4 max-w-6xl">
-                    {chartTickersList.map(ct => 
-                        <div className={`p-2 mr-2 mb-2 rounded-xl hover: cursor-pointer ${ct.visible ? "bg-green-800": "bg-neutral-700"}`} onClick={() => onTickerSelection(ct.idx)}>
+                    {chartTickersList.map(ct =>
+                        <div key={ct.tickerPair} className={`p-2 mr-2 mb-2 rounded-xl hover: cursor-pointer ${ct.visible ? "bg-green-800" : "bg-neutral-700"}`} onClick={() => onTickerSelection(ct.idx)}>
                             <div className="text-xs ">{ct.tickerPair}</div>
                         </div>
                     )}

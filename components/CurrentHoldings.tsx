@@ -12,15 +12,30 @@ interface AvgPosition {
     shares: number,
     avgPrice: number,
     fees: number,
-    cost: number, 
+    cost: number,
     profit: number,
-    numberLots: number
+    numberLots: number,
+    hasPositiveLots: boolean
 }
+
 
 interface Holdings {
     ticker: string,
     individualLots: BuyOrder[]
     currentPrice: number
+}
+
+const sanitizeBuyOrder = (lot: any): BuyOrder => {
+    return {
+        ...lot,
+        price: Number(lot.price),
+        filled: Number(lot.filled),
+        cost: Number(lot.cost),
+        fee: {
+            ...lot.fee,
+            cost: Number(lot.fee.cost)
+        }
+    }
 }
 
 const CurrentHoldings = () => {
@@ -44,9 +59,10 @@ const CurrentHoldings = () => {
             const tempAvgPositions: Dictionary<AvgPosition> = {}
             const tempHoldings: Dictionary<Holdings> = {}
             const tempHoldingsDisplayState: Dictionary<boolean> = {}
-            
+
             const allTickerPairs: string[] = []
-            data.forEach((lot: BuyOrder) => {
+            data.forEach((l: BuyOrder) => {
+                const lot = sanitizeBuyOrder(l)
                 const current_ticker = lot.symbol
                 const filled = lot.filled
                 const price = lot.price
@@ -56,8 +72,8 @@ const CurrentHoldings = () => {
                     const avgPosition: AvgPosition = tempAvgPositions[current_ticker]
                     const currentAvgPrice = avgPosition.avgPrice
                     const currentAvgShares = avgPosition.shares
-     
-                    avgPosition.avgPrice = ((filled * price) + (currentAvgPrice * currentAvgShares))/(currentAvgShares + filled)
+
+                    avgPosition.avgPrice = ((filled * price) + (currentAvgPrice * currentAvgShares)) / (currentAvgShares + filled)
                     avgPosition.shares += filled
                     avgPosition.fees += fee
                     avgPosition.cost += (price * filled) + fee
@@ -79,8 +95,9 @@ const CurrentHoldings = () => {
                         fees: fee,
                         cost: (price * filled) + fee,
                         profit: 0,
-                        numberLots: 1
-                    } 
+                        numberLots: 1,
+                        hasPositiveLots: (lot.profit !== undefined && lot.profit !== null) ? lot.profit > 0 : false
+                    }
                     tempAvgPositions[current_ticker] = avgPosition
                 }
             })
@@ -91,29 +108,29 @@ const CurrentHoldings = () => {
             const tickerLatestDataResponse = await fetch(`/api/cmc/latest?symbol=${tickerQuery}`)
             const tickerLatestDataResponseJson = await tickerLatestDataResponse.json()
             const status = tickerLatestDataResponseJson.status
-            
+
             let marketValue = 0
             let cost = 0
 
             if (status.error_code === 0) {
                 const latestTickersData = tickerLatestDataResponseJson.data
-                for(let t=0; t<allTickerPairs.length; ++t) {
+                for (let t = 0; t < allTickerPairs.length; ++t) {
                     const tickerPair = allTickerPairs[t]
                     const ticker = tickerPair.split("/")[0]
                     if (!(ticker in latestTickersData)) {
                         console.log(`missing latest data for ${ticker}`)
                         continue
                     }
-                    
+
                     const latestTickerData = latestTickersData[ticker]
                     if (latestTickerData.length === 0) {
                         console.log(`empty data returned for ${ticker}`)
                         continue
                     }
                     const latestPrice = latestTickerData[0]["quote"][currency]["price"]
-                    
+
                     tempHoldings[tickerPair].currentPrice = latestPrice
-                    
+
                     const avgPosition = tempAvgPositions[tickerPair]
                     const profit = (latestPrice - avgPosition.avgPrice) * avgPosition.shares
                     const avgCost = avgPosition.avgPrice * avgPosition.shares
@@ -125,18 +142,21 @@ const CurrentHoldings = () => {
                         const lotCost = lot.price * lot.filled
                         const lotFee = lot.fee.cost * 2
                         lot.profit = ((lotProfit - lotFee) / lotCost) * 100
+                        if (lot.profit > 0) {
+                            avgPosition.hasPositiveLots = true
+                        }
                     })
 
                     marketValue += latestPrice * avgPosition.shares
                     cost += avgCost + avgPosition.fees
                 }
-                
+
             } else {
                 console.warn(`error occured fetch latest ticker prices: ${status.error_message}`)
             }
 
             const avgPositions: AvgPosition[] = []
-            allTickerPairs.forEach((tickerPair) =>  {
+            allTickerPairs.forEach((tickerPair) => {
                 avgPositions.push(tempAvgPositions[tickerPair])
             })
 
@@ -145,7 +165,7 @@ const CurrentHoldings = () => {
             setAvgPositions(avgPositions)
             setTotalCost(cost)
             setMarketValue(marketValue)
-            setTotalPerformance((marketValue - cost)/cost * 100)
+            setTotalPerformance((marketValue - cost) / cost * 100)
             setIsLoading(false)
         }
 
@@ -157,8 +177,8 @@ const CurrentHoldings = () => {
         if (!holdingsDisplayState || !(tickerPair in holdingsDisplayState)) {
             return
         }
-        const tempDisplayState = {...holdingsDisplayState}
-        tempDisplayState[tickerPair] = !tempDisplayState[tickerPair]        
+        const tempDisplayState = { ...holdingsDisplayState }
+        tempDisplayState[tickerPair] = !tempDisplayState[tickerPair]
         setHoldingsDisplayState(tempDisplayState)
     }
 
@@ -178,12 +198,15 @@ const CurrentHoldings = () => {
             </div>
 
             <div className="pb-4">
-                {avgPositions.map( (avgPosition: AvgPosition, index) => (
+                {avgPositions.map((avgPosition: AvgPosition, index) => (
                     <div key={index}>
                         <div
-                            onClick={() => onHoldingsRowClick(avgPosition.ticker)} 
-                            className={`flex gap-4 pb-2 text-xl cursor-pointer ${avgPosition.profit < 0 ? 'text-red-700 hover:bg-red-300 hover:font-bold': 'text-green-700 hover:bg-green-300 hover:font-bold'}`}>
-                            <div className="flex-none min-w-32 w-44">{avgPosition.ticker}</div>
+                            onClick={() => onHoldingsRowClick(avgPosition.ticker)}
+                            className={`flex gap-4 pb-2 text-xl cursor-pointer ${avgPosition.profit < 0 ? 'text-red-700 hover:bg-red-300 hover:font-bold' : 'text-green-700 hover:bg-green-300 hover:font-bold'}`}>
+                            <div className="flex-none min-w-32 w-44 flex flex-row gap-2 items-center">
+                                <div>{avgPosition.ticker}</div>
+                                {avgPosition.hasPositiveLots && <div className="text-green-500 font-bold">★</div>}
+                            </div>
                             <div className="min-w-44 w-44">{avgPosition.shares.toFixed(MAX_PRECISION)}</div>
                             <div className="min-w-44 w-44">${avgPosition.avgPrice.toFixed(MAX_PRECISION)}</div>
                             <div className="min-w-44 w-44">${avgPosition.fees.toFixed(MAX_PRECISION)}</div>
@@ -192,10 +215,10 @@ const CurrentHoldings = () => {
                             <div className="min-w-44 w-44">{avgPosition.numberLots}</div>
 
                         </div>
-                        {holdings && avgPosition.ticker in holdings && holdingsDisplayState && !(holdingsDisplayState[avgPosition.ticker]) && (   
-                            holdings[avgPosition.ticker].individualLots.map((lot: BuyOrder, idx:number) => (
+                        {holdings && avgPosition.ticker in holdings && holdingsDisplayState && !(holdingsDisplayState[avgPosition.ticker]) && (
+                            holdings[avgPosition.ticker].individualLots.map((lot: BuyOrder, idx: number) => (
                                 <div key={idx} className={`flex gap-4 pl-4 pb-4 text-sm bg-slate-900 ${lot.profit && lot.profit < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                    <div className="flex-none min-w-32 w-44">{ formatDate(lot.timestamp) }</div>
+                                    <div className="flex-none min-w-32 w-44">{formatDate(lot.timestamp)}</div>
                                     <div className="m-w-44 w-44">{lot.filled.toFixed(MAX_PRECISION)}</div>
                                     <div className="min-w-44 w-44">${lot.price.toFixed(MAX_PRECISION)}</div>
                                     <div className="min-w-44 w-44">${lot.fee.cost.toFixed(MAX_PRECISION)}</div>
@@ -221,7 +244,7 @@ const CurrentHoldings = () => {
                     </div>
                     <div className="flex gap-4 text-2xl font-bold pb-4">
                         <div className="w-72">TOTAL PERFORMANCE:</div>
-                        <div className={`${totalPerformance < 0 ? 'text-red-700': 'text-green-700'}`}>{totalPerformance.toFixed(2)}%</div>
+                        <div className={`${totalPerformance < 0 ? 'text-red-700' : 'text-green-700'}`}>{totalPerformance.toFixed(2)}%</div>
                     </div>
                 </div>
             </div>

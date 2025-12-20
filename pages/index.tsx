@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react"
 
-import { Inter } from "next/font/google"
+import { inter } from "@/utils/fonts"
 import { SellOrder } from "@/interfaces/sellOrder";
 import { Dictionary } from "@/interfaces/dictionary";
 
 import CurrentHoldings from "@/components/CurrentHoldings"
 import ScatterChart from "@/components/ScatterChart"
 import ProfitsLineChart from "@/components/ProfitsLineChart"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export default function Home() {
 
@@ -17,31 +15,31 @@ export default function Home() {
 
   useEffect(() => {
     async function asyncFetchSellOrders() {
-        const sellOrderResponse = await fetch(`api/sellOrders`)
-        const SellOrderResponseJson = await sellOrderResponse.json()
+      const sellOrderResponse = await fetch(`api/sellOrders`)
+      const SellOrderResponseJson = await sellOrderResponse.json()
 
-        const newTickerSellOrders: Dictionary<SellOrder[]> = {}
-        const allTickerPairs: string[] = []
-        SellOrderResponseJson.forEach((sellOrder:SellOrder) => {
-            const tickerPair = sellOrder.sell_order.symbol
+      const newTickerSellOrders: Dictionary<SellOrder[]> = {}
+      const allTickerPairs: string[] = []
+      SellOrderResponseJson.forEach((sellOrder: SellOrder) => {
+        const tickerPair = sellOrder.sell_order.symbol
 
-            if (tickerPair in newTickerSellOrders) {
-                newTickerSellOrders[sellOrder.sell_order.symbol].push(sellOrder)
-            } else {
-                allTickerPairs.push(tickerPair)
-                newTickerSellOrders[sellOrder.sell_order.symbol] = [sellOrder]
-            }
-        })
-        
-        setTickerLists(allTickerPairs)
-        setTickersSellOrders(newTickerSellOrders)
+        if (tickerPair in newTickerSellOrders) {
+          newTickerSellOrders[sellOrder.sell_order.symbol].push(sellOrder)
+        } else {
+          allTickerPairs.push(tickerPair)
+          newTickerSellOrders[sellOrder.sell_order.symbol] = [sellOrder]
+        }
+      })
+
+      setTickerLists(allTickerPairs)
+      setTickersSellOrders(newTickerSellOrders)
     }
 
-    asyncFetchSellOrders()    
+    asyncFetchSellOrders()
   }, [])
 
   return (
-    
+
     <main className={`flex flex-row bg-white dark:bg-black ${inter.className}`}>
       <div className="flex-grow"></div>
 
@@ -54,7 +52,7 @@ export default function Home() {
 
         <div>
           <div>
-            <CurrentHoldings/>
+            <CurrentHoldings />
           </div>
           <div>
             <ScatterChart title="Historical Performance" tickerLists={tickerLists} tickersSellOrders={tickersSellOrders} />
