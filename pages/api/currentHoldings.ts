@@ -1,26 +1,33 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from "next"
 import mongoClientPromise from '../../utils/mongodb'
+import { normalizeOrder } from '../../utils/normalize'
 import { BuyOrder } from '../../interfaces/buyOrder'
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<BuyOrder[] | { error: string }>,
 ) {
-    const { ticker } = req.query; // Access the ticker query parameter
+    const { ticker } = req.query; // optional base ticker filter, e.g. ?ticker=BTC
 
-    const client = await mongoClientPromise
     try {
+        const client = await mongoClientPromise
         const DB_NAME = process.env.DB_NAME || "crypto-bot"
         const COLLECTION_NAME = process.env.TRADES_COLLECTION_NAME || "trades"
         const db = client.db(DB_NAME)
-        const collection = db.collection<BuyOrder>(COLLECTION_NAME)
+        const collection = db.collection(COLLECTION_NAME)
 
-        const query = ticker ? { ticker: (ticker as string).toUpperCase() } : {}
-        const documents = await collection.find(query).toArray();
+        // Lots are stored with the full ccxt pair in `symbol` (e.g. "BTC/USD")
+        const query = ticker
+            ? { symbol: { $regex: `^${(ticker as string).toUpperCase()}/` } }
+            : {}
+        const documents = await collection
+            .find(query)
+            .sort({ symbol: 1, timestamp: 1 })
+            .toArray();
 
-        res.status(200).json(documents);
+        res.status(200).json(documents.map(normalizeOrder));
       } catch (error) {
-        res.status(500).json({ error: `error fetching current holders: ${error}` });
-      } 
+        res.status(500).json({ error: `error fetching current holdings: ${error}` });
+      }
 }

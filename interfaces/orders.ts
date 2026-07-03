@@ -1,3 +1,6 @@
+// NOTE: raw MongoDB documents store many numeric fields as strings
+// (Coinbase API returns strings). API routes pass every document through
+// utils/normalize.ts, so these interfaces describe the *normalized* shape.
 export interface OrderFee {
     cost: number;
     currency: string | null;
