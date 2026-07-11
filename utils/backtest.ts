@@ -51,6 +51,9 @@ export interface BacktestTrade {
     hold_hours: number
 }
 
+// Naive split — no quoting support. Safe because the backtester only writes
+// numeric fields and enum-like slugs (see RESULTS_FORMAT.md: `reason` is
+// strategy_buy/take_profit/...), never free text that could contain commas.
 function parseCsv(filePath: string): Record<string, string>[] {
     const text = fs.readFileSync(filePath, 'utf-8').trim()
     if (!text) {
@@ -145,8 +148,9 @@ export interface CandlePoint {
 }
 
 export function readCandles(ticker: string, timeframe: string, fromMs?: number, toMs?: number): CandlePoint[] | null {
-    // "BTC/USD" -> BTC_USD_1h.csv; the replace also blocks path traversal
-    const fileName = `${ticker.replace(/[^A-Za-z0-9]/g, '_')}_${timeframe}.csv`
+    // "BTC/USD" + "1h" -> BTC_USD_1h.csv; the replace also blocks path
+    // traversal (both params come straight from the query string)
+    const fileName = `${`${ticker}_${timeframe}`.replace(/[^A-Za-z0-9]/g, '_')}.csv`
     const filePath = path.join(candlesDir(), fileName)
     if (!fs.existsSync(filePath)) {
         return null

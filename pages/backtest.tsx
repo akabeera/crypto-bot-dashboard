@@ -1,25 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { Inter } from "next/font/google"
-import { RunSummaryInfo, EquityPoint, BacktestTrade, CandlePoint } from "@/utils/backtest"
+import { RunSummaryInfo, CandlePoint } from "@/utils/backtest"
+import type { RunDetail } from "./api/backtest/run/[stamp]"
 import EquityChart from "@/components/backtest/EquityChart"
 import PriceTradesChart from "@/components/backtest/PriceTradesChart"
 import RunComparisonTable from "@/components/backtest/RunComparisonTable"
 import StatTile from "@/components/StatTile"
 import PnlBarChart, { PnlRow } from "@/components/PnlBarChart"
+import { fmt, fmtStamp } from "@/utils/format"
 
 const inter = Inter({ subsets: ["latin"] })
-
-interface RunDetail {
-    stamp: string
-    run: any | null
-    equity: EquityPoint[]
-    trades: BacktestTrade[]
-}
-
-function fmtStamp(stamp: string): string {
-    return `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)} ${stamp.slice(9, 11)}:${stamp.slice(11, 13)}:${stamp.slice(13, 15)}`
-}
 
 export default function Backtest() {
     const [runs, setRuns] = useState<RunSummaryInfo[]>([])
@@ -50,11 +41,13 @@ export default function Backtest() {
         loadRuns()
     }, [])
 
-    // load detail when the selected run changes
+    // load detail when the selected run changes; the cancelled flag stops a
+    // slow response for a previously selected run from clobbering the new one
     useEffect(() => {
         if (!selectedStamp) {
             return
         }
+        let cancelled = false
         async function loadDetail() {
             setIsLoadingDetail(true)
             setError(null)
@@ -64,14 +57,21 @@ export default function Backtest() {
                 if (!res.ok) {
                     throw new Error(data?.error || `unexpected response (${res.status})`)
                 }
-                setDetail(data)
+                if (!cancelled) {
+                    setDetail(data)
+                }
             } catch (e) {
-                setError(e instanceof Error ? e.message : String(e))
+                if (!cancelled) {
+                    setError(e instanceof Error ? e.message : String(e))
+                }
             } finally {
-                setIsLoadingDetail(false)
+                if (!cancelled) {
+                    setIsLoadingDetail(false)
+                }
             }
         }
         loadDetail()
+        return () => { cancelled = true }
     }, [selectedStamp])
 
     const tickers = useMemo(() => {
@@ -85,6 +85,7 @@ export default function Backtest() {
             setCandlesByTicker({})
             return
         }
+        let cancelled = false
         async function loadCandles() {
             const times = detail!.equity.map(p => p.time)
             const from = times.length > 0 ? times[0] : undefined
@@ -106,9 +107,12 @@ export default function Backtest() {
                     byTicker[r.value.ticker] = r.value.candles
                 }
             })
-            setCandlesByTicker(byTicker)
+            if (!cancelled) {
+                setCandlesByTicker(byTicker)
+            }
         }
         loadCandles()
+        return () => { cancelled = true }
     }, [detail, tickers])
 
     // realized P&L per coin for the selected run, from the sell fills
@@ -153,7 +157,7 @@ export default function Backtest() {
                         onChange={e => setSelectedStamp(e.target.value)}>
                         {runs.map(r => (
                             <option key={r.stamp} value={r.stamp}>
-                                {fmtStamp(r.stamp)}{r.hasRunJson ? ` — ${r.config_file}` : " (legacy, no config)"}
+                                {fmtStamp(r.stamp, true)}{r.hasRunJson ? ` — ${r.config_file}` : " (legacy, no config)"}
                             </option>
                         ))}
                     </select>
@@ -163,13 +167,13 @@ export default function Backtest() {
 
                 {summary && (
                     <div className="flex flex-wrap gap-3">
-                        <StatTile label="Return" value={`${summary.return_pct?.toFixed(2)}%`} sign={summary.return_pct} />
-                        <StatTile label="Buy & hold benchmark" value={`${summary.benchmark_return_pct?.toFixed(2) ?? "--"}%`} sign={summary.benchmark_return_pct} />
-                        <StatTile label="Final equity" value={`$${summary.final_equity?.toFixed(2)}`} />
-                        <StatTile label="Max drawdown" value={`${summary.max_drawdown_pct?.toFixed(2)}%`} sign={-1} />
-                        <StatTile label="Realized P&L" value={`$${summary.realized_pnl?.toFixed(2)}`} sign={summary.realized_pnl} />
-                        <StatTile label="Unrealized P&L" value={`$${summary.unrealized_pnl?.toFixed(2)}`} sign={summary.unrealized_pnl} />
-                        <StatTile label="Win rate" value={`${summary.win_rate_pct?.toFixed(1)}%`} />
+                        <StatTile label="Return" value={`${fmt(summary.return_pct)}%`} sign={summary.return_pct} />
+                        <StatTile label="Buy & hold benchmark" value={`${fmt(summary.benchmark_return_pct)}%`} sign={summary.benchmark_return_pct} />
+                        <StatTile label="Final equity" value={`$${fmt(summary.final_equity)}`} />
+                        <StatTile label="Max drawdown" value={`${fmt(summary.max_drawdown_pct)}%`} sign={-1} />
+                        <StatTile label="Realized P&L" value={`$${fmt(summary.realized_pnl)}`} sign={summary.realized_pnl} />
+                        <StatTile label="Unrealized P&L" value={`$${fmt(summary.unrealized_pnl)}`} sign={summary.unrealized_pnl} />
+                        <StatTile label="Win rate" value={`${fmt(summary.win_rate_pct, 1)}%`} />
                         <StatTile label="Open lots" value={`${summary.open_lots ?? "--"}`} />
                     </div>
                 )}

@@ -54,7 +54,9 @@ export interface Order {
     _id: {
         $oid: string;
     };
-    info: OrderInfo;
+    // API routes project most of `info` away (see pages/api/*): buy orders
+    // carry none of it, sell orders keep only total_value_after_fees
+    info?: Partial<OrderInfo>;
     id: string;
     clientOrderId: string;
     timestamp: number;

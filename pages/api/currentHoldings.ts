@@ -21,8 +21,11 @@ export default async function handler(
         const query = ticker
             ? { symbol: { $regex: `^${(ticker as string).toUpperCase()}/` } }
             : {}
+        // Drop the raw Coinbase `info` blob and fill list — the client only
+        // needs the normalized ccxt fields, and `info` dominates payload size
         const documents = await collection
             .find(query)
+            .project({ info: 0, trades: 0 })
             .sort({ symbol: 1, timestamp: 1 })
             .toArray();
 

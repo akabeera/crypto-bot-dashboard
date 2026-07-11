@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { BuyOrder } from "@/interfaces/buyOrder"
 import { formatDate } from "@/utils/dates"
+import { usd, signClass as sharedSignClass } from "@/utils/format"
 
 export interface PortfolioPosition {
     ticker: string          // full pair, e.g. "BTC/USD"
@@ -19,15 +20,8 @@ type Props = {
     positions: PortfolioPosition[]
 }
 
-function usd(n: number | null, digits = 2): string {
-    if (n === null || !Number.isFinite(n)) return "--"
-    return "$" + n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
-}
-
-function signClass(n: number | null): string {
-    if (n === null || n === 0) return "text-neutral-400"
-    return n > 0 ? "text-green-500" : "text-red-400"
-}
+// zero/unpriced values render muted rather than default ink
+const signClass = (n: number | null) => sharedSignClass(n, "text-neutral-400")
 
 // Current holdings, one row per coin, expandable to the individual lots.
 const PortfolioTable = ({ positions }: Props) => {

@@ -51,6 +51,17 @@ function getExchange(): Exchange {
 }
 let exchangeInstance: Exchange | null = null
 
+// ccxt caches loadMarkets() forever on the instance; force a reload every
+// hour so listings/delistings don't drift in a long-running server.
+const MARKETS_TTL_MS = 60 * 60 * 1000
+let marketsLoadedAt = 0
+
+async function loadMarketsWithTtl(exchange: Exchange): Promise<void> {
+    const reload = Date.now() - marketsLoadedAt > MARKETS_TTL_MS
+    await exchange.loadMarkets(reload)
+    marketsLoadedAt = reload ? Date.now() : marketsLoadedAt
+}
+
 function toQuote(symbol: string, t: any): TickerQuote {
     return {
         symbol,
@@ -73,7 +84,7 @@ export async function fetchQuotes(symbols: string[]): Promise<Record<string, Tic
     // Drop symbols the exchange no longer lists (e.g. delisted VGX/USD) —
     // ccxt raises BadSymbol for the entire batch otherwise. Callers see
     // which symbols came back and can flag the rest as unpriced.
-    await exchange.loadMarkets()
+    await loadMarketsWithTtl(exchange)
     const listed = symbols.filter(s => s in exchange.markets && exchange.markets[s]?.active !== false)
     if (listed.length === 0) {
         return quotes

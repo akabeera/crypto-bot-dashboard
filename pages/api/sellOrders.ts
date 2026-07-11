@@ -37,8 +37,21 @@ export default async function handler(
         }
 
         const query = conditions.length > 0 ? { $and: conditions } : {}
+
+        // Only the fields realized-P&L math needs (utils/profit.ts); the raw
+        // ccxt/Coinbase docs are ~10x bigger than this projection
+        const projection = {
+            "sell_order.timestamp": 1,
+            "sell_order.symbol": 1,
+            "sell_order.cost": 1,
+            "sell_order.fee": 1,
+            "sell_order.info.total_value_after_fees": 1,
+            "closed_positions.cost": 1,
+            "closed_positions.fee": 1,
+        }
         const documents = await collection
             .find(query)
+            .project(projection)
             .sort({ "sell_order.timestamp": 1 })
             .toArray();
 

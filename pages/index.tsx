@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 
 import Link from "next/link"
 import { Inter } from "next/font/google"
@@ -10,6 +10,7 @@ import PortfolioTable, { PortfolioPosition } from "@/components/live/PortfolioTa
 import PnlBarChart, { PnlRow } from "@/components/PnlBarChart"
 import ProfitsLineChart from "@/components/ProfitsLineChart"
 import { profitPercent, realizedPnl } from "@/utils/profit"
+import { usd } from "@/utils/format"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,58 +18,59 @@ interface Quote {
     bid: number | null
 }
 
-function usd(n: number, digits = 2): string {
-    return "$" + n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
-}
-
 export default function Home() {
 
     const [holdings, setHoldings] = useState<BuyOrder[]>([])
     const [quotes, setQuotes] = useState<Record<string, Quote>>({})
     const [sellOrders, setSellOrders] = useState<SellOrder[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(true)    // first load only
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [lastUpdated, setLastUpdated] = useState<number | null>(null)
     const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => {
-        async function loadAll() {
-            setIsLoading(true)
-            setError(null)
-            try {
-                const [holdingsRes, sellsRes] = await Promise.all([
-                    fetch('/api/currentHoldings'),
-                    fetch('/api/sellOrders?days=0'),   // all-time, for realized P&L
-                ])
-                const holdingsData = await holdingsRes.json()
-                const sellsData = await sellsRes.json()
-                if (!holdingsRes.ok || !Array.isArray(holdingsData)) {
-                    throw new Error(holdingsData?.error || `holdings: unexpected response (${holdingsRes.status})`)
-                }
-                if (!sellsRes.ok || !Array.isArray(sellsData)) {
-                    throw new Error(sellsData?.error || `sell orders: unexpected response (${sellsRes.status})`)
-                }
-
-                const pairs = Array.from(new Set(holdingsData.map((l: BuyOrder) => l.symbol).filter(Boolean)))
-                let quotesData: Record<string, Quote> = {}
-                if (pairs.length > 0) {
-                    const quotesRes = await fetch(`/api/prices?symbols=${encodeURIComponent(pairs.join(","))}`)
-                    const q = await quotesRes.json()
-                    if (!quotesRes.ok) {
-                        throw new Error(q?.error || `prices: unexpected response (${quotesRes.status})`)
-                    }
-                    quotesData = q
-                }
-
-                setHoldings(holdingsData)
-                setSellOrders(sellsData)
-                setQuotes(quotesData)
-            } catch (e) {
-                setError(e instanceof Error ? e.message : String(e))
-            } finally {
-                setIsLoading(false)
+    const loadAll = useCallback(async () => {
+        setIsRefreshing(true)
+        setError(null)
+        try {
+            const [holdingsRes, sellsRes] = await Promise.all([
+                fetch('/api/currentHoldings'),
+                fetch('/api/sellOrders?days=0'),   // all-time, for realized P&L
+            ])
+            const holdingsData = await holdingsRes.json()
+            const sellsData = await sellsRes.json()
+            if (!holdingsRes.ok || !Array.isArray(holdingsData)) {
+                throw new Error(holdingsData?.error || `holdings: unexpected response (${holdingsRes.status})`)
             }
+            if (!sellsRes.ok || !Array.isArray(sellsData)) {
+                throw new Error(sellsData?.error || `sell orders: unexpected response (${sellsRes.status})`)
+            }
+
+            const pairs = Array.from(new Set(holdingsData.map((l: BuyOrder) => l.symbol).filter(Boolean)))
+            let quotesData: Record<string, Quote> = {}
+            if (pairs.length > 0) {
+                const quotesRes = await fetch(`/api/prices?symbols=${encodeURIComponent(pairs.join(","))}`)
+                const q = await quotesRes.json()
+                if (!quotesRes.ok) {
+                    throw new Error(q?.error || `prices: unexpected response (${quotesRes.status})`)
+                }
+                quotesData = q
+            }
+
+            setHoldings(holdingsData)
+            setSellOrders(sellsData)
+            setQuotes(quotesData)
+            setLastUpdated(Date.now())
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+        } finally {
+            setIsLoading(false)
+            setIsRefreshing(false)
         }
-        loadAll()
     }, [])
+
+    useEffect(() => {
+        loadAll()
+    }, [loadAll])
 
     // group open lots into per-coin positions, priced off the exchange bid
     const positions = useMemo<PortfolioPosition[]>(() => {
@@ -88,16 +90,19 @@ export default function Home() {
             let marketValue: number | null = null
             let unrealized: number | null = null
             let unrealizedPct: number | null = null
+            // new lot objects — never mutate the `holdings` state in a memo
+            let pricedLots = lots
             if (bid) {
                 marketValue = bid * shares
                 unrealized = marketValue - (cost + fees)
                 unrealizedPct = profitPercent({ price: avgPrice, shares, cost, fee: fees }, bid)
-                lots.forEach(lot => {
-                    lot.profit = profitPercent({ price: lot.price, shares: lot.filled, cost: lot.cost, fee: lot.fee.cost }, bid)
-                })
+                pricedLots = lots.map(lot => ({
+                    ...lot,
+                    profit: profitPercent({ price: lot.price, shares: lot.filled, cost: lot.cost, fee: lot.fee.cost }, bid),
+                }))
             }
 
-            return { ticker, shares, avgPrice, currentPrice: bid, cost, fees, marketValue, unrealized, unrealizedPct, lots }
+            return { ticker, shares, avgPrice, currentPrice: bid, cost, fees, marketValue, unrealized, unrealizedPct, lots: pricedLots }
         }).sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0))
     }, [holdings, quotes])
 
@@ -145,7 +150,20 @@ export default function Home() {
 
                 <div className="flex items-baseline justify-between border-b border-neutral-800 pb-4">
                     <p className="text-3xl font-mono">Crypto-Bot Dashboard</p>
-                    <Link href="/backtest" className="text-sm text-blue-400 hover:underline">Backtest results →</Link>
+                    <div className="flex items-baseline gap-4">
+                        {lastUpdated && (
+                            <span className="text-xs text-neutral-500">
+                                updated {new Date(lastUpdated).toLocaleTimeString()}
+                            </span>
+                        )}
+                        <button
+                            onClick={loadAll}
+                            disabled={isRefreshing}
+                            className="text-sm rounded-lg border border-neutral-700 px-3 py-1 hover:bg-neutral-800 disabled:opacity-50">
+                            {isRefreshing ? "Refreshing…" : "Refresh"}
+                        </button>
+                        <Link href="/backtest" className="text-sm text-blue-400 hover:underline">Backtest results →</Link>
+                    </div>
                 </div>
 
                 {isLoading && <p className="text-neutral-400">Loading live data…</p>}

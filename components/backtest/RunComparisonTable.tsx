@@ -1,24 +1,11 @@
 import React from "react"
 import { RunSummaryInfo } from "@/utils/backtest"
+import { fmt, fmtStamp, signClass } from "@/utils/format"
 
 type Props = {
     runs: RunSummaryInfo[]
     selectedStamp: string | null
     onSelect: (stamp: string) => void
-}
-
-function fmtStamp(stamp: string): string {
-    // 20260703_142050 -> 2026-07-03 14:20
-    return `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)} ${stamp.slice(9, 11)}:${stamp.slice(11, 13)}`
-}
-
-function fmt(n: number | undefined, digits = 2): string {
-    return typeof n === "number" && Number.isFinite(n) ? n.toFixed(digits) : "--"
-}
-
-function signClass(n: number | undefined): string {
-    if (typeof n !== "number" || n === 0 || !Number.isFinite(n)) return ""
-    return n > 0 ? "text-green-500" : "text-red-400"
 }
 
 // Side-by-side comparison of every run that has a run_<stamp>.json —
