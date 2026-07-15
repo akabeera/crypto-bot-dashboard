@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react"
 
 import Link from "next/link"
-import { Inter } from "next/font/google"
+import { inter } from "@/utils/fonts"
 import { BuyOrder } from "@/interfaces/buyOrder"
 import { SellOrder } from "@/interfaces/sellOrder"
 
@@ -11,8 +11,6 @@ import PnlBarChart, { PnlRow } from "@/components/PnlBarChart"
 import ProfitsLineChart from "@/components/ProfitsLineChart"
 import { profitPercent, realizedPnl } from "@/utils/profit"
 import { usd } from "@/utils/format"
-
-const inter = Inter({ subsets: ["latin"] })
 
 interface Quote {
     bid: number | null

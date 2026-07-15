@@ -58,6 +58,7 @@ const PortfolioTable = ({ positions }: Props) => {
                                 <td className="px-3 py-2 whitespace-nowrap">
                                     <span className="text-neutral-500 pr-2">{expanded[p.ticker] ? "▾" : "▸"}</span>
                                     {p.ticker.split("/")[0]}
+                                    {p.lots.some(lot => (lot.profit ?? 0) > 0) && <span className="text-green-500 font-bold pl-2">★</span>}
                                 </td>
                                 <td className="px-3 py-2 text-right">{p.shares.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
                                 <td className="px-3 py-2 text-right">{usd(p.avgPrice, p.avgPrice < 1 ? 6 : 2)}</td>
