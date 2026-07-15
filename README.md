@@ -1,40 +1,43 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# crypto-bot-dashboard
 
-## Getting Started
+Next.js dashboard for the [crypto_bot](../crypto_bot) trading bot: live holdings and
+realized P&L from the bot's MongoDB, plus backtest visualizations from
+`crypto_bot/backtest/results`.
 
-First, run the development server:
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment (`.env.local`)
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+| Var | Purpose |
+|---|---|
+| `MONGODB_URI` | The bot's MongoDB (Atlas). Use the standard `mongodb://host1,host2,host3/...` form — Node's `mongodb+srv://` SRV lookups can time out on Windows |
+| `DB_NAME` | `crypto-bot` |
+| `TRADES_COLLECTION_NAME` / `SELL_ORDERS_COLLECTION_NAME` | `trades` / `sell_orders` |
+| `SUPPORTED_TICKERS` | comma-separated base tickers used to filter sell orders |
+| `API_KEY` / `API_SECRET` | Coinbase credentials, same values as `crypto_bot/.env`. Optional — without them prices fall back to public per-symbol fetches |
+| `EXCHANGE_ID` | ccxt exchange id (default `coinbase`, same as the bot) |
+| `BACKTEST_RESULTS_DIR` | override; defaults to `../crypto_bot/backtest/results` |
+| `BACKTEST_DATA_DIR` | override; defaults to `../crypto_bot/backtest/data` |
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+## Data flow
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+- **Market prices** come from the same exchange the bot trades on, via
+  [ccxt](https://github.com/ccxt/ccxt) (`/api/prices`) — not a third-party
+  aggregator — so dashboard P&L matches what the bot sees. Profit math mirrors
+  `crypto_bot/utils/trading.py:calculate_profit_percent` (fee-rate-estimated
+  sell fee, cost basis excluding buy fee).
+- **Mongo documents** store many numeric fields as strings (Coinbase API
+  quirk). Every API route passes documents through `utils/normalize.ts`;
+  client code can assume numbers.
+- **Backtests** (`/backtest`) read the CSV/JSON contract documented in
+  `crypto_bot/backtest/RESULTS_FORMAT.md`: equity curve, per-ticker price with
+  buy/sell fills (from the backtester's own candle cache), and a run
+  comparison table across `run_*.json` summaries.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Requires Node >= 20.17 (developed on Node 22, Next 15) — older Node breaks
+ccxt 4.5.x, which ships ESM-only dependencies.

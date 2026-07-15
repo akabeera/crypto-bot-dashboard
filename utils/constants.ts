@@ -12,7 +12,6 @@ export const MAX_PRECISION = 8
 export const MIN_PRECISION = 2
 
 
-export const CMC_URL = "https://pro-api.coinmarketcap.com/v2"
 export const SCATTER_PLOT_STYLES = [
     {
         pointStyle: 'circle',
